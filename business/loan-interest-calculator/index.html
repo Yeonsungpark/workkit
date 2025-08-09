@@ -829,6 +829,17 @@ button.ghost{ background:transparent }
 footer{ max-width:1024px; margin:36px auto 0; padding:0 16px 40px; color:var(--muted); font-size:13px }
 button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-color:rgba(0,0,0,.08) }
 @media (prefers-reduced-motion: reduce){ *{ animation:none !important; transition:none !important } }
+</style><style id="wk-loan-lite">
+/* === Workkit: Loan Calculator Enhancements (lite) === */
+.err { color:#d92d20; font-size:13px; margin-top:6px; display:none; }
+.result-grid { display:grid; grid-template-columns: 1fr; gap:10px; }
+.result-row { display:flex; justify-content:space-between; border-bottom:1px dashed #e5e7eb; padding:6px 0; }
+.result-row .k { color:#667085; }
+.result-row .v { font-weight:700; }
+.result-row:last-child { border-bottom:0; }
+.badge { display:inline-block; padding:3px 8px; border-radius:999px; background:#e8f0ff; color:#1f6fff; font-size:12px; font-weight:700; }
+.small { font-size:12.5px; color:#667085; }
+.highlight { font-weight:800; color:#007bff; }
 </style></head>
 <body><header class="wk-header">
 <nav class="wk-nav">
@@ -839,7 +850,6 @@ button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-
 <span class="wk-spacer"></span>
 </nav>
 </header>
-
 <nav aria-label="breadcrumb">
 <ol class="breadcrumb">
 <li><a aria-label="홈" href="/">홈</a></li>
@@ -850,17 +860,17 @@ button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-
 <div class="container">
 <h2>🏦 대출이자 계산기</h2>
 <label>💳 대출금액 (원)</label>
-<input id="loanAmount" oninput="formatNumber(this)" placeholder="예: 10,000,000" type="text"/>
+<input autocomplete="off" id="loanAmount" inputmode="numeric" oninput="formatNumber(this)" placeholder="예: 10,000,000" type="text"/><div class="err" id="loanAmountErr">대출금액은 1원 이상이어야 합니다.</div>
 <label>📆 대출기간 (개월)</label>
-<input id="loanPeriod" placeholder="예: 24" type="number"/>
+<input autocomplete="off" id="loanPeriod" inputmode="numeric" min="1" placeholder="예: 24" type="number"/><div class="err" id="loanPeriodErr">대출기간(개월)은 1 이상이어야 합니다.</div>
 <label>📈 연 이자율 (%)</label>
-<input id="interestRate" placeholder="예: 3.5" step="0.01" type="number"/>
+<input autocomplete="off" id="interestRate" inputmode="decimal" min="0" placeholder="예: 3.5" step="0.01" type="number"/><div class="err" id="interestRateErr">연 이자율(%)은 0 이상이어야 합니다.</div>
 <label>🔄 상환방식</label>
 <select id="repaymentType">
 <option value="equal">원리금 균등상환 (매월 원금+이자)</option>
 <option value="interestOnly">만기 일시상환 (이자만 납부)</option>
 </select>
-<button onclick="calculateLoan()">계산하기</button>
+<button id="btnCalc" onclick="calculateLoan()" type="button">계산하기</button>
 <div class="result" id="resultArea"></div>
 <div class="details">
 <strong>📌 대출상환 방식 안내</strong><br/>
@@ -869,7 +879,15 @@ button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-
 <li><strong>만기 일시상환:</strong> 매월 이자만 납부하고 만기에 원금을 일시 납부하는 방식으로, 매달 부담이 적지만 만기에 원금을 한 번에 갚아야 합니다.</li>
 </ul>
 <strong>💡 Tip:</strong> 대부분의 직장인은 원리금 균등상환을 선택하여 이자 부담을 낮추는 편입니다.
-    </div>
+    
+<hr/>
+<p><strong>예시</strong></p>
+<ul>
+<li>대출 10,000,000원 · 24개월 · 연 4% · <em>원리금 균등</em> ⇒ 월 상환액 약 <b>434,000원</b> 내외</li>
+<li>대출 10,000,000원 · 24개월 · 연 4% · <em>이자만 납부</em> ⇒ 월 이자 <b>33,333원</b>, 만기에 원금 10,000,000원 상환</li>
+</ul>
+<p class="small">※ 은행/카드사별 약정에 따라 일할계산(일수 기준), 수수료·보증료, 중도상환수수료 등이 추가될 수 있습니다.</p>
+</div>
 </div>
 <footer class="global-footer" role="contentinfo">
 <nav aria-label="하단 내비게이션">
@@ -885,5 +903,114 @@ button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-
 </nav>
 <small>© Workkit. All rights reserved.</small>
 </footer>
-</body>
+<script id="wk-loan-core">
+(function(){
+  // ===== Helpers =====
+  var nf = new Intl.NumberFormat('ko-KR');
+  function fmt(n){ try { return nf.format(Math.round(n)); } catch(_){ return n; } }
+  function uncomma(v){ return (v||'').toString().replace(/,/g,'').trim(); }
+  function toNum(v){
+    var s = uncomma(v).replace(/[^\d.-]/g,'');
+    if ((s.match(/\./g)||[]).length>1) { s = s.replace(/\.(?=.*\.)/g,''); }
+    var n = Number(s);
+    return Number.isFinite(n) ? n : 0;
+  }
+  function toPct(v){ var s=(v||'').toString().replace(/[^\d.-]/g,''); var n=Number(s); return Number.isFinite(n)?n:0; }
+  function show(id,yes){ var el=document.getElementById(id); if(!el) return; el.style.display = yes?'block':'none'; }
+
+  // Expose formatter for oninput attribute compatibility
+  window.formatNumber = function(el){
+    if(!el) return;
+    el.value = el.value.replace(/[^\d]/g,'');
+    if(el.value) el.value = fmt(toNum(el.value));
+  };
+
+  // ===== Main calc =====
+  window.calculateLoan = function(){
+    var L = toNum(document.getElementById('loanAmount') && document.getElementById('loanAmount').value);
+    var n = Math.max(0, toNum(document.getElementById('loanPeriod') && document.getElementById('loanPeriod').value));
+    var annual = toPct(document.getElementById('interestRate') && document.getElementById('interestRate').value);
+    var typeEl = document.getElementById('repaymentType');
+    var type = typeEl ? typeEl.value : 'equal';
+
+    var valid = true;
+    if(!(L>=1)){ show('loanAmountErr',true); valid=false; } else show('loanAmountErr',false);
+    if(!(n>=1)){ show('loanPeriodErr',true); valid=false; } else show('loanPeriodErr',false);
+    if(!(annual>=0)){ show('interestRateErr',true); valid=false; } else show('interestRateErr',false);
+    if(!valid){ render(''); return; }
+
+    var r = (annual/100)/12; // monthly rate
+    var monthlyPay=0, totalInterest=0, totalPayment=0, monthlyInterest=0;
+
+    if(type==='equal'){
+      if(r===0){
+        monthlyPay = L / n;
+        totalPayment = L;
+        totalInterest = 0;
+      }else{
+        var pow = Math.pow(1+r, n);
+        monthlyPay = L * r * pow / (pow - 1);
+        totalPayment = monthlyPay * n;
+        totalInterest = totalPayment - L;
+      }
+    }else if(type==='interestOnly'){
+      monthlyInterest = L * r;
+      if(r===0) monthlyInterest = 0;
+      monthlyPay = monthlyInterest; // 매월 이자만
+      totalInterest = monthlyInterest * n;
+      totalPayment = totalInterest + L; // 만기에 원금 상환
+    }
+
+    render(
+      '<div class="badge">계산 결과</div>' +
+      '<div class="result-grid">' +
+        '<div class="result-row"><span class="k">대출금액</span><span class="v">'+fmt(L)+'원</span></div>' +
+        '<div class="result-row"><span class="k">대출기간</span><span class="v">'+fmt(n)+'개월</span></div>' +
+        '<div class="result-row"><span class="k">연 이자율</span><span class="v">'+annual.toLocaleString('ko-KR',{maximumFractionDigits:2})+'%</span></div>' +
+        (type==='equal'
+          ? '<div class="result-row"><span class="k"><b>월 상환액(원리금 균등)</b></span><span class="v"><b>'+fmt(monthlyPay)+'원</b></span></div>'
+          : '<div class="result-row"><span class="k"><b>월 이자(이자만 납부)</b></span><span class="v"><b>'+fmt(monthlyPay)+'원</b></span></div>') +
+        '<div class="result-row"><span class="k">총 이자</span><span class="v">'+fmt(totalInterest)+'원</span></div>' +
+        '<div class="result-row"><span class="k"><b>총 상환액</b></span><span class="v"><b>'+fmt(totalPayment)+'원</b></span></div>' +
+      '</div>' +
+      '<div class="small" style="margin-top:8px">※ 원리금 균등은 표준 산식(PMT)을 사용, 이자만 납부는 월 이자 = 원금×월이율 기준입니다. 실제 대출은 일할계산·수수료·중도상환수수료 등에 따라 달라질 수 있습니다.</div>'
+    );
+  };
+
+  function render(html){
+    var box = document.getElementById('resultArea');
+    if(!box) return;
+    if(!html){ box.innerHTML=''; box.style.display='none'; return; }
+    box.innerHTML = html;
+    box.style.display='block';
+  }
+
+  // Live reactions
+  var $L = document.getElementById('loanAmount');
+  var $N = document.getElementById('loanPeriod');
+  var $R = document.getElementById('interestRate');
+  var $T = document.getElementById('repaymentType');
+
+  if($L){
+    $L.addEventListener('focus', function(){ $L.value = uncomma($L.value); });
+    $L.addEventListener('blur', function(){ var n = toNum($L.value); $L.value = (n||n===0)?fmt(n):''; calculateLoan(); });
+    $L.addEventListener('input', function(){ calculateLoan(); });
+  }
+  if($N){ $N.addEventListener('input', calculateLoan); $N.addEventListener('blur', calculateLoan); }
+  if($R){ $R.addEventListener('input', calculateLoan); $R.addEventListener('blur', calculateLoan); }
+  if($T){ $T.addEventListener('change', calculateLoan); }
+
+  // Enter anywhere
+  document.addEventListener('keydown', function(e){
+    var tag = (e.target && e.target.tagName || '').toLowerCase();
+    if(e.key==='Enter' && tag!=='textarea'){ e.preventDefault(); calculateLoan(); }
+  }, true);
+
+  // Button click
+  var btn = document.getElementById('btnCalc');
+  if(btn){ btn.addEventListener('click', function(e){ e.preventDefault(); calculateLoan(); }); }
+
+  // Initial compute (if values prefilled)
+  calculateLoan();
+})();</script></body>
 </html>
