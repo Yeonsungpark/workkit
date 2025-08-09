@@ -885,6 +885,14 @@ button.ghost{ background:transparent }
 footer{ max-width:1024px; margin:36px auto 0; padding:0 16px 40px; color:var(--muted); font-size:13px }
 button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-color:rgba(0,0,0,.08) }
 @media (prefers-reduced-motion: reduce){ *{ animation:none !important; transition:none !important } }
+</style><style id="wk-income-2024-lite">
+.result-grid{display:grid;grid-template-columns:1fr;gap:8px}
+.result-row{display:flex;justify-content:space-between;border-bottom:1px dashed #e5e7eb;padding:6px 0}
+.result-row .k{color:#667085}
+.result-row .v{font-weight:700}
+.result-row:last-child{border-bottom:0}
+.badge{display:inline-block;padding:3px 8px;border-radius:999px;background:#e8f0ff;color:#1f6fff;font-size:12px;font-weight:700}
+.small{font-size:12.5px;color:#667085}
 </style></head>
 <body><header class="wk-header">
 <nav class="wk-nav">
@@ -895,7 +903,6 @@ button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-
 <span class="wk-spacer"></span>
 </nav>
 </header>
-
 <nav aria-label="breadcrumb">
 <ol class="breadcrumb">
 <li><a aria-label="홈" href="/">홈</a></li>
@@ -913,20 +920,20 @@ button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-
 <div class="section-title">① 소득 입력</div>
 <div class="input-group">
 <label>사업소득 <span class="subdesc">(사업자, 프리랜서 등)</span></label>
-<input id="bizIncome" oninput="formatComma(this)" placeholder="예: 50,000,000" type="text"/>
+<input autocomplete="off" id="bizIncome" inputmode="numeric" oninput="formatComma(this)" placeholder="예: 50,000,000" type="text"/>
 </div>
 <div class="input-group">
 <label>근로소득 <span class="subdesc">(직장인 급여, 4대보험 가입자)</span></label>
-<input id="salaryIncome" oninput="formatComma(this)" placeholder="예: 28,000,000" type="text"/>
+<input autocomplete="off" id="salaryIncome" inputmode="numeric" oninput="formatComma(this)" placeholder="예: 28,000,000" type="text"/>
 </div>
 <div class="input-group">
 <label>투자소득 <span class="subdesc">(이자, 배당, 임대, 기타)</span></label>
-<input id="investIncome" oninput="formatComma(this)" placeholder="예: 4,000,000" type="text"/>
+<input autocomplete="off" id="investIncome" inputmode="numeric" oninput="formatComma(this)" placeholder="예: 4,000,000" type="text"/>
 </div>
 <div class="section-title">② 필요경비</div>
 <div class="input-group">
 <label>필요경비 총액 <span style="font-size:12px; color:#888">(사업 관련 지출. 투자·근로 제외)</span></label>
-<input id="expense" oninput="formatComma(this)" placeholder="예: 15,000,000" type="text"/>
+<input autocomplete="off" id="expense" inputmode="numeric" oninput="formatComma(this)" placeholder="예: 15,000,000" type="text"/>
 <div class="input-desc">
           주요경비: 상품 구입비용, 임차료, 인건비<br/>
           기타경비: 복리후생비, 차량유지비, 보험료, 소모품비, 지급수수료 등
@@ -935,7 +942,7 @@ button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-
 <div class="section-title">③ 인적공제</div>
 <div class="input-group">
 <label>본인 포함 총 가족수(명)</label>
-<input id="family" min="1" placeholder="예: 3" type="number"/>
+<input autocomplete="off" id="family" inputmode="numeric" min="1" placeholder="예: 3" type="number"/>
 <div class="input-desc">
           본인포함 1인당 150만원 공제<br/>
           경로우대 인당 100만원 추가, 장애인 인당 200만원 추가<br/>
@@ -945,15 +952,15 @@ button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-
 <div class="section-title">④ 추가 공제</div>
 <div class="input-group">
 <label>연금저축(2001년 이후 납입분)</label>
-<input id="pension" oninput="formatComma(this)" placeholder="예: 3,000,000" type="text"/>
+<input autocomplete="off" id="pension" inputmode="numeric" oninput="formatComma(this)" placeholder="예: 3,000,000" type="text"/>
 </div>
 <div class="input-group">
 <label>기타 공제(국민연금, 건강보험 등 본인 부담액)</label>
-<input id="otherDeduct" oninput="formatComma(this)" placeholder="예: 2,400,000" type="text"/>
+<input autocomplete="off" id="otherDeduct" inputmode="numeric" oninput="formatComma(this)" placeholder="예: 2,400,000" type="text"/>
 </div>
 <button type="submit">종합소득세 계산하기</button>
 </form>
-<div class="result-box" id="result" style="display:none"></div>
+<div class="result-box" id="result" style="display:none"></div><div class="small" id="wk-2024-note">2024 귀속 기준: 과세표준 구간 1,400·5,000·8,800·1.5억·3억·5억·10억 / 연금계좌 세액공제 12%(총급여 5,500만원 이하 15%)·연금저축 한도 600만원 / 근로소득공제 한도 2,000만원.</div>
 <div class="section-title" style="margin-top:36px;">종합소득세율표(2025년)</div>
 <table class="tax-table" style="; max-width: 100%; height: auto;">
 <tr>
@@ -995,5 +1002,139 @@ button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-
 </nav>
 <small>© Workkit. All rights reserved.</small>
 </footer>
-</body>
+<script id="wk-income-2024-core">
+(function(){
+  // ===== Utilities =====
+  var nf = new Intl.NumberFormat('ko-KR');
+  function fmt(n){ try{return nf.format(Math.round(n));}catch(_){return n;} }
+  function uncomma(v){ return (v||'').toString().replace(/,/g,'').trim(); }
+  function toInt(v){ var s=uncomma(v).replace(/[^\d-]/g,''); var n=parseInt(s||'0',10); return Number.isFinite(n)?n:0; }
+  function clamp(n, lo){ return (typeof lo==='number' && n<lo)?lo:n; }
+
+  // 천단위 콤마 표시
+  window.formatComma = function(el){
+    if(!el) return;
+    var raw = uncomma(el.value).replace(/[^\d-]/g,'');
+    if(raw===''||raw==='-'){ el.value=raw; return; }
+    el.value = fmt(parseInt(raw,10)||0);
+  };
+
+  // ===== 2024 세율표 (국세청) =====
+  // 과세표준 구간 및 누진공제
+  var BRACKETS = [
+    {limit: 14000000, rate: 0.06, quick:      0},
+    {limit: 50000000, rate: 0.15, quick: 1260000},
+    {limit: 88000000, rate: 0.24, quick: 5760000},
+    {limit:150000000, rate: 0.35, quick:15440000},
+    {limit:300000000, rate: 0.38, quick:19940000},
+    {limit:500000000, rate: 0.40, quick:25940000},
+    {limit:1000000000,rate: 0.42, quick:35940000},
+    {limit: Infinity, rate: 0.45, quick:65940000}
+  ];
+
+  function incomeTaxByTable(taxable){
+    // 산출세액 = 과세표준×세율 − 누진공제
+    var b = BRACKETS.find(function(x){ return taxable <= x.limit; });
+    if(!b) return 0;
+    return Math.max(0, Math.round(taxable * b.rate - b.quick));
+  }
+
+  // 근로소득공제 (소득세법 §47, 공제한도 2,000만원)
+  function earnedIncomeDeduction(totalSalary){
+    var s = totalSalary;
+    if(s<=0) return 0;
+    var d=0;
+    if (s <= 5000000) d = s * 0.70;
+    else if (s <= 15000000) d = 3500000 + (s - 5000000) * 0.40;
+    else if (s <= 45000000) d = 7500000 + (s - 15000000) * 0.15;
+    else if (s <= 100000000) d = 12000000 + (s - 45000000) * 0.05;
+    else d = 14750000 + (s - 100000000) * 0.02;
+    if (d > 20000000) d = 20000000;
+    // 총급여 미만 공제 규정
+    if (d > s) d = s;
+    return Math.floor(d);
+  }
+
+  // 연금저축 세액공제 (연금계좌): 12% (총급여 5,500만원 이하 15%), 연금저축 한도 600만원
+  function pensionTaxCredit(pensionPay, totalSalary){
+    var cap = 6000000; // 연금저축 입력만 받는 구조
+    var base = Math.max(0, Math.min(cap, pensionPay||0));
+    var rate = (totalSalary>0 && totalSalary<=55000000) ? 0.15 : 0.12;
+    return Math.round(base * rate);
+  }
+
+  window.calculateTax = function(){
+    var biz = toInt(document.getElementById('bizIncome') && document.getElementById('bizIncome').value);
+    var sal = toInt(document.getElementById('salaryIncome') && document.getElementById('salaryIncome').value); // 총급여
+    var inv = toInt(document.getElementById('investIncome') && document.getElementById('investIncome').value);
+    var exp = toInt(document.getElementById('expense') && document.getElementById('expense').value);
+    var fam = toInt(document.getElementById('family') && document.getElementById('family').value);
+    var pen = toInt(document.getElementById('pension') && document.getElementById('pension').value);
+    var oth = toInt(document.getElementById('otherDeduct') && document.getElementById('otherDeduct').value);
+
+    fam = fam>0 ? fam : 1;
+    biz = clamp(biz, 0); sal = clamp(sal, 0); inv = clamp(inv, 0); exp = clamp(exp, 0);
+    pen = clamp(pen, 0); oth = clamp(oth, 0);
+
+    // 1) 소득금액 산정
+    var businessIncomeAmount = Math.max(0, biz - exp);  // 필요경비 차감
+    var earnedDeduct = earnedIncomeDeduction(sal);
+    var earnedIncomeAmount = Math.max(0, sal - earnedDeduct);
+    var totalIncomeAmount = businessIncomeAmount + earnedIncomeAmount + inv;
+
+    // 2) 종합소득공제
+    var basicPersonal = fam * 1500000; // 기본공제 (요건 가정)
+    var totalDeduction = basicPersonal + oth; // 기타 소득공제 포함
+
+    // 3) 과세표준
+    var taxable = Math.max(0, totalIncomeAmount - totalDeduction);
+
+    // 4) 산출세액(국세)
+    var natTaxComputed = incomeTaxByTable(taxable);
+
+    // 5) 세액공제(연금계좌만 반영)
+    var taxCredit = pensionTaxCredit(pen, sal);
+    var natTaxAfterCredit = Math.max(0, natTaxComputed - taxCredit);
+
+    // 6) 지방소득세(산출세액의 10% 상당)
+    var localTax = Math.round(natTaxComputed * 0.10);
+
+    var totalPay = natTaxAfterCredit + localTax;
+
+    var $res = document.getElementById('result');
+    if($res){
+      var html='';
+      html+='<div class="badge">2024 기준 결과</div>';
+      html+='<div class="result-grid">';
+      html+='<div class="result-row"><span class="k">사업소득금액(수입-필요경비)</span><span class="v">'+fmt(businessIncomeAmount)+'원</span></div>';
+      html+='<div class="result-row"><span class="k">근로소득금액(총급여-'+fmt(earnedDeduct)+' 공제)</span><span class="v">'+fmt(earnedIncomeAmount)+'원</span></div>';
+      html+='<div class="result-row"><span class="k">투자소득금액</span><span class="v">'+fmt(inv)+'원</span></div>';
+      html+='<div class="result-row"><span class="k"><b>총소득금액 합계</b></span><span class="v"><b>'+fmt(totalIncomeAmount)+'원</b></span></div>';
+      html+='<div class="result-row"><span class="k">종합소득공제(기본 '+fmt(basicPersonal)+' + 기타 '+fmt(oth)+')</span><span class="v">-'+fmt(totalDeduction)+'원</span></div>';
+      html+='<div class="result-row"><span class="k"><b>과세표준</b></span><span class="v"><b>'+fmt(taxable)+'원</b></span></div>';
+      html+='<div class="result-row"><span class="k">국세 산출세액(누진공제 반영)</span><span class="v">'+fmt(natTaxComputed)+'원</span></div>';
+      html+='<div class="result-row"><span class="k">세액공제(연금계좌)</span><span class="v">-'+fmt(taxCredit)+'원</span></div>';
+      html+='<div class="result-row"><span class="k"><b>종합소득세(국세, 결정)</b></span><span class="v"><b>'+fmt(natTaxAfterCredit)+'원</b></span></div>';
+      html+='<div class="result-row"><span class="k">지방소득세(산출세액 10%)</span><span class="v">'+fmt(localTax)+'원</span></div>';
+      html+='<div class="result-row"><span class="k"><b>총 납부세금</b></span><span class="v"><b>'+fmt(totalPay)+'원</b></span></div>';
+      html+='</div>';
+      html+='<div class="small" style="margin-top:8px">※ 간소화: 자녀·보험료·의료비 등 기타 세액공제/감면은 미반영. 실제 신고 시 추가 공제 적용 가능.</div>';
+      $res.innerHTML = html;
+      $res.style.display='block';
+    }
+  };
+
+  // Enter anywhere triggers calc
+  document.addEventListener('keydown', function(e){
+    var tag = (e.target && e.target.tagName || '').toLowerCase();
+    if(e.key==='Enter' && tag!=='textarea'){ e.preventDefault(); if(window.calculateTax) window.calculateTax(); }
+  }, true);
+
+  // Initialize commas on preset values
+  ['bizIncome','salaryIncome','investIncome','expense','pension','otherDeduct'].forEach(function(id){
+    var el = document.getElementById(id); if(!el) return;
+    if(el.value) el.value = fmt(toInt(el.value));
+  });
+})();
+</script></body>
 </html>
