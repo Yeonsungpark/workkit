@@ -780,6 +780,13 @@ button.ghost{ background:transparent }
 footer{ max-width:1024px; margin:36px auto 0; padding:0 16px 40px; color:var(--muted); font-size:13px }
 button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-color:rgba(0,0,0,.08) }
 @media (prefers-reduced-motion: reduce){ *{ animation:none !important; transition:none !important } }
+</style><style id="wk-lite-tabs-and-primary">
+/* === Workkit lite tabs + primary button === */
+.wk-tabs { display:flex; gap:8px; margin: 8px 0 14px; flex-wrap:wrap; }
+.wk-tab { display:inline-block; padding:10px 14px; border-radius:999px; border:1px solid #e5e7eb; background:#fff; color:#101828; text-decoration:none; font-size:14px; }
+.wk-tab.is-active, .wk-tab:hover { background:#1f6fff; color:#fff; border-color:#1f6fff; }
+button.primary { background:#1f6fff !important; color:#fff !important; border:none !important; border-radius:12px !important; padding:12px 16px !important; font-weight:700 !important; box-shadow:0 4px 12px rgba(31,111,255,.25) !important; }
+button.primary:active { transform: translateY(1px); }
 </style></head>
 <body><header class="wk-header">
 <nav class="wk-nav">
@@ -790,7 +797,6 @@ button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-
 <span class="wk-spacer"></span>
 </nav>
 </header>
-
 <nav aria-label="breadcrumb">
 <ol class="breadcrumb">
 <li><a aria-label="홈" href="/">홈</a></li>
@@ -799,30 +805,30 @@ button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-
 </ol>
 </nav>
 <div class="container">
-<h2>손익분기점 분석 계산기</h2>
-<div class="field">
+<h2>손익분기점 분석 계산기</h2><div class="wk-tabs" id="wk-tabs"><a class="wk-tab is-active" href="#calc-section" id="tab-calc">계산기</a><a class="wk-tab" href="#guide-section" id="tab-guide">설명</a></div><section id="calc-section"><div class="field">
 <label for="price">상품 판매가 (₩)</label>
-<input id="price" placeholder="예: 20000" type="text"/>
-</div>
-<div class="field">
+<input autocomplete="off" id="price" inputmode="numeric" placeholder="예: 20000" type="text"/>
+</div><div class="field">
 <label for="cost">상품 1개당 원가(변동비)</label>
-<input id="cost" placeholder="예: 8000" type="text"/>
-</div>
-<div class="field">
+<input autocomplete="off" id="cost" inputmode="numeric" placeholder="예: 8000" type="text"/>
+</div><div class="field">
 <label for="fixed">월 고정비</label>
-<input id="fixed" placeholder="예: 1000000" type="text"/>
-</div>
-<div class="field">
+<input autocomplete="off" id="fixed" inputmode="numeric" placeholder="예: 1000000" type="text"/>
+</div><div class="field">
 <label for="volume">판매 수량</label>
-<input id="volume" placeholder="예: 100" type="text"/>
-</div>
-<button onclick="calculate()">계산하기</button>
-<div class="result" id="output" style="display:none">
+<input autocomplete="off" id="volume" inputmode="numeric" placeholder="예: 100" type="text"/>
+</div><button class="primary" onclick="calculate()" type="button">계산하기</button><div class="result" id="output" style="display:none">
 <p id="breakeven"></p>
 <p id="summary"></p>
 <p id="profit"></p>
-</div>
-<div class="note">
+</div></section>
+
+
+
+
+
+
+<div class="note" id="guide-section">
 <h3>📘 손익분기점 분석이란?</h3>
 <p>손익분기점(BEP, Break Even Point)은 <strong>비용과 수익이 같아져서 이익도 손실도 없는 상태</strong>를 말합니다.</p>
 <p>즉, 사업자가 <strong>최소 몇 개를 팔아야 손해를 보지 않는지</strong> 판단하는 데 유용합니다.</p>
@@ -858,5 +864,108 @@ button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-
 </nav>
 <small>© Workkit. All rights reserved.</small>
 </footer>
-</body>
+<script id="wk-calc-core">
+(function(){
+  // number helpers
+  var nf = new Intl.NumberFormat('ko-KR');
+  function fmt(n){ try{return nf.format(n);}catch(_){return n;} }
+  function uncomma(v){ return (v||'').toString().replace(/,/g,'').trim(); }
+  function toNum(v){
+    var s = uncomma(v).replace(/[^\d.-]/g,'');
+    if ((s.match(/\./g)||[]).length>1) { s = s.replace(/\.(?=.*\.)/g,''); }
+    var n = Number(s); return Number.isFinite(n)?n:0;
+  }
+
+  var $price = document.getElementById('price');
+  var $cost  = document.getElementById('cost');
+  var $fixed = document.getElementById('fixed');
+  var $vol   = document.getElementById('volume');
+  var $out   = document.getElementById('output');
+  var $bre   = document.getElementById('breakeven');
+  var $sum   = document.getElementById('summary');
+  var $pro   = document.getElementById('profit');
+
+  function calculate(){
+    var price = toNum($price && $price.value);
+    var cost  = toNum($cost && $cost.value);
+    var fixed = toNum($fixed && $fixed.value);
+    var vol   = toNum($vol && $vol.value);
+
+    if(!(price>0) || cost<0 || fixed<0 || vol<0){
+      if($out) $out.style.display='block';
+      if($bre) $bre.textContent = '입력 오류: 판매가>0, 원가/고정비/수량은 0 이상이어야 합니다.';
+      if($sum) $sum.textContent = '현재 값 — 판매가: '+fmt(price)+'원, 원가: '+fmt(cost)+'원, 고정비: '+fmt(fixed)+'원, 수량: '+fmt(vol)+'개';
+      if($pro) $pro.textContent = '';
+      return;
+    }
+
+    var unitCM = price - cost;
+    var cmRate = price>0 ? (unitCM/price*100) : 0;
+
+    if(unitCM<=0){
+      var sales0 = vol * price;
+      var var0   = vol * cost;
+      var profit0= sales0 - (fixed + var0);
+
+      if($out) $out.style.display='block';
+      if($bre) $bre.textContent = '손익분기점 계산 불가: 판매가가 원가보다 커야 합니다.';
+      if($sum) $sum.textContent = '공헌이익(판매가-원가): '+fmt(unitCM)+'원 / 공헌이익률: '+cmRate.toLocaleString('ko-KR',{maximumFractionDigits:2})+'%';
+      if($pro) $pro.textContent = '현재 입력 수량 기준 순이익: '+(profit0>=0?'+':'')+fmt(profit0)+'원';
+      return;
+    }
+
+    var bepExact = fixed / unitCM;
+    var bepQty   = Math.ceil(bepExact);
+    var bepRevenue = bepQty * price;
+
+    var sales = vol * price;
+    var variable = vol * cost;
+    var totalCost = fixed + variable;
+    var profit = sales - totalCost;
+
+    if($out) $out.style.display='block';
+    if($bre) $bre.innerHTML = '손익분기점 수량: <span class="highlight">'+fmt(bepQty)+'개</span> (정확: '+bepExact.toLocaleString('ko-KR',{maximumFractionDigits:2})+'개) · 손익분기점 매출: <span class="highlight">'+fmt(bepRevenue)+'원</span>';
+    if($sum) $sum.textContent = '공헌이익(판매가-원가): '+fmt(unitCM)+'원 / 공헌이익률: '+cmRate.toLocaleString('ko-KR',{maximumFractionDigits:2})+'%';
+    if($pro) $pro.textContent = '현재 입력 수량 기준 순이익: '+(profit>=0?'+':'')+fmt(profit)+'원 (총매출 '+fmt(sales)+'원 − 총비용 '+fmt(totalCost)+'원)';
+  }
+  window.calculate = calculate;
+
+  // auto-commas + live calc
+  ['price','cost','fixed','volume'].forEach(function(id){
+    var el = document.getElementById(id); if(!el) return;
+    el.addEventListener('focus', function(){ el.value = uncomma(el.value); });
+    el.addEventListener('blur', function(){ var n = toNum(el.value); el.value = (n||n===0)?fmt(n):''; calculate(); });
+    el.addEventListener('input', function(){ calculate(); });
+  });
+
+  // Enter anywhere (except textarea)
+  document.addEventListener('keydown', function(e){
+    var tag = (e.target && e.target.tagName || '').toLowerCase();
+    if (e.key === 'Enter' && tag !== 'textarea') { e.preventDefault(); calculate(); }
+  }, true);
+
+  // Ensure "계산하기" buttons trigger calculate
+  Array.prototype.forEach.call(document.querySelectorAll('button'), function(b){
+    if ((b.textContent||'').indexOf('계산')>-1) {
+      b.addEventListener('click', function(ev){ ev.preventDefault(); calculate(); });
+    }
+  });
+
+  // Initialize display
+  calculate();
+})();</script><script id="wk-tabs-activate">
+(function(){
+  function updateActive(){
+    var hash = location.hash || '#calc-section';
+    var aCalc = document.getElementById('tab-calc');
+    var aGuide = document.getElementById('tab-guide');
+    if(aCalc && aGuide){
+      aCalc.classList.toggle('is-active', hash==='#calc-section');
+      aGuide.classList.toggle('is-active', hash==='#guide-section');
+    }
+  }
+  window.addEventListener('hashchange', updateActive);
+  document.addEventListener('DOMContentLoaded', updateActive);
+  updateActive();
+})();</script></body>
 </html>
