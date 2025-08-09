@@ -807,15 +807,15 @@ button.primary:active { transform: translateY(1px); }
 <div class="container">
 <h2>손익분기점 분석 계산기</h2><div class="wk-tabs" id="wk-tabs"><a class="wk-tab is-active" href="#calc-section" id="tab-calc">계산기</a><a class="wk-tab" href="#guide-section" id="tab-guide">설명</a></div><section id="calc-section"><div class="field">
 <label for="price">상품 판매가 (₩)</label>
-<input autocomplete="off" id="price" inputmode="numeric" placeholder="예: 20000" type="text"/>
+<input autocomplete="off" id="price" inputmode="numeric" placeholder="예: 20,000" type="text"/>
 </div><div class="field">
-<label for="cost">상품 1개당 원가(변동비)</label>
-<input autocomplete="off" id="cost" inputmode="numeric" placeholder="예: 8000" type="text"/>
+<label for="cost">상품 1개당 원가 (변동비)</label>
+<input autocomplete="off" id="cost" inputmode="numeric" placeholder="예: 8,000" type="text"/>
 </div><div class="field">
-<label for="fixed">월 고정비</label>
-<input autocomplete="off" id="fixed" inputmode="numeric" placeholder="예: 1000000" type="text"/>
+<label for="fixed">월 고정비 (₩)</label>
+<input autocomplete="off" id="fixed" inputmode="numeric" placeholder="예: 1,000,000" type="text"/>
 </div><div class="field">
-<label for="volume">판매 수량</label>
+<label for="volume">판매 수량 (개)</label>
 <input autocomplete="off" id="volume" inputmode="numeric" placeholder="예: 100" type="text"/>
 </div><button class="primary" onclick="calculate()" type="button">계산하기</button><div class="result" id="output" style="display:none">
 <p id="breakeven"></p>
