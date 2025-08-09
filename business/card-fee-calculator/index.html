@@ -824,7 +824,7 @@ button.ghost{ background:transparent }
 footer{ max-width:1024px; margin:36px auto 0; padding:0 16px 40px; color:var(--muted); font-size:13px }
 button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-color:rgba(0,0,0,.08) }
 @media (prefers-reduced-motion: reduce){ *{ animation:none !important; transition:none !important } }
-</style></head>
+</style><style id="wk-cardfee-err-css">.err{color:#d92d20;font-size:13px;margin-top:6px;display:none}</style></head>
 <body><header class="wk-header">
 <nav class="wk-nav">
 <a class="wk-brand" href="/">Workkit</a>
@@ -834,7 +834,6 @@ button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-
 <span class="wk-spacer"></span>
 </nav>
 </header>
-
 <nav aria-label="breadcrumb">
 <ol class="breadcrumb">
 <li><a aria-label="홈" href="/">홈</a></li>
@@ -846,13 +845,13 @@ button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-
 <h1>카드 수수료 계산기</h1>
 <p class="subtitle">자영업자와 프리랜서를 위한 간편 수수료 정산 도구</p>
 <label for="amount">💰 카드 결제 금액 (원)</label>
-<input id="amount" placeholder="예: 150,000" type="text"/>
+<input autocomplete="off" id="amount" inputmode="numeric" placeholder="예: 150,000" type="text"/><div class="err" id="amountErr">결제 금액은 0원 이상이어야 합니다.</div>
 <label for="fee">📌 카드 수수료율 (%) <span style="font-weight:normal">(※ 평균 약 2.2%)</span></label>
-<input id="fee" placeholder="예: 2.3" type="text"/>
+<input autocomplete="off" id="fee" inputmode="decimal" placeholder="예: 2.3" type="text"/><div class="err" id="feeErr">수수료율은 0~100% 범위여야 합니다.</div><button class="primary" id="btnCalc" type="button">계산하기</button>
 <label for="feeResult">📉 수수료 금액</label>
-<input id="feeResult" readonly="" type="text"/>
+<input id="feeResult" readonly="True" type="text"/>
 <label for="netAmount">📈 실제 수령 금액</label>
-<input id="netAmount" readonly="" type="text"/>
+<input id="netAmount" readonly="True" type="text"/>
 <div class="info-box">
 <strong>📌 카드 수수료 계산이란?</strong><br/>
       고객이 카드로 결제한 금액 중 카드사에 지급해야 할 수수료를 미리 계산하여, <strong>실제로 내 계좌에 입금되는 금액</strong>을 확인하는 계산기입니다.<br/><br/>
@@ -861,7 +860,7 @@ button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-
       → 수수료는 3,450원<br/>
       → 실제 수령 금액은 146,550원이 됩니다.<br/><br/>
 <strong>💡 Tip:</strong> 카드 수수료는 업종 및 매출에 따라 차등 적용되며, <u>소상공인 우대 수수료율</u>도 존재합니다. 평균 수수료율은 약 2.2%입니다.
-    </div>
+    <div style="margin-top:10px;color:#667085;font-size:13px">※ 2025 기준 일반 가맹점 예시이며, 실제 정산은 카드사·PG사·계약 조건에 따라 달라질 수 있습니다.</div></div>
 </div>
 <footer class="global-footer" role="contentinfo">
 <nav aria-label="하단 내비게이션">
@@ -877,5 +876,64 @@ button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-
 </nav>
 <small>© Workkit. All rights reserved.</small>
 </footer>
-</body>
+<script id="wk-cardfee-core-exact">
+(function(){
+  // Formatting helpers
+  var nf = new Intl.NumberFormat('ko-KR');
+  function fmt(n){ try{ return nf.format(Math.round(n)); }catch(_){ return n; } }
+  function uncomma(v){ return (v||'').toString().replace(/,/g,'').trim(); }
+  function toNum(v){ var s=uncomma(v).replace(/[^\d.-]/g,''); var n=Number(s); return Number.isFinite(n)?n:0; }
+  function toPct(v){ var s=(v||'').toString().replace(/[^\d.-]/g,''); var n=Number(s); return Number.isFinite(n)?n:0; }
+  function show(id, yes){ var el=document.getElementById(id); if(!el) return; el.style.display = yes?'block':'none'; }
+
+  var $amount = document.getElementById('amount');
+  var $fee = document.getElementById('fee');
+  var $feeResult = document.getElementById('feeResult');
+  var $netAmount = document.getElementById('netAmount');
+
+  function calculate(){
+    var amount = toNum($amount && $amount.value);
+    var feePct = toPct($fee && $fee.value);
+
+    var ok = true;
+    if(!(amount>=0)){ show('amountErr',true); ok=false; } else show('amountErr',false);
+    if(!(feePct>=0 && feePct<=100)){ show('feeErr',true); ok=false; } else show('feeErr',false);
+    if(!ok){
+      if($feeResult) $feeResult.value='';
+      if($netAmount) $netAmount.value='';
+      return;
+    }
+
+    var feeAmount = Math.round(amount * (feePct/100)); // 원 단위 반올림
+    var net = amount - feeAmount;
+
+    if($feeResult) $feeResult.value = fmt(feeAmount);
+    if($netAmount) $netAmount.value = fmt(net);
+  }
+  window.calculate = calculate;
+
+  // Auto-commas for amount
+  if($amount){
+    $amount.addEventListener('focus', function(){ $amount.value = uncomma($amount.value); });
+    $amount.addEventListener('blur', function(){ var n = toNum($amount.value); $amount.value = (n||n===0)?fmt(n):''; calculate(); });
+    $amount.addEventListener('input', calculate);
+  }
+  if($fee){
+    $fee.addEventListener('input', calculate);
+    $fee.addEventListener('blur', calculate);
+  }
+
+  // Enter anywhere triggers
+  document.addEventListener('keydown', function(e){
+    var tag = (e.target && e.target.tagName || '').toLowerCase();
+    if(e.key==='Enter' && tag!=='textarea'){ e.preventDefault(); calculate(); }
+  }, true);
+
+  // Button click
+  var btn = document.getElementById('btnCalc');
+  if(btn){ btn.addEventListener('click', function(e){ e.preventDefault(); calculate(); }); }
+
+  // Initial compute
+  calculate();
+})();</script></body>
 </html>
