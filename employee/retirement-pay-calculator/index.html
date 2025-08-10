@@ -805,11 +805,11 @@ button.primary:active { transform: translateY(1px); }
 <div class="container">
 <h2>퇴직금 계산기</h2>
 <div class="section">
-<label>최근 3개월 세전 월급(￦)</label>
+<label>최근 3개월 세전 월급 (￦)</label>
 <div class="row">
-<input autocomplete="off" id="month1" inputmode="numeric" placeholder="1개월차 월급 (예: 3000000)" type="text"/>
-<input autocomplete="off" id="month2" inputmode="numeric" placeholder="2개월차 월급 (예: 3000000)" type="text"/>
-<input autocomplete="off" id="month3" inputmode="numeric" placeholder="3개월차 월급 (예: 3000000)" type="text"/><div class="err" id="moneyErr">월급은 0원 이상 숫자로 입력하세요.</div>
+<input autocomplete="off" id="month1" inputmode="numeric" placeholder="1개월차 월급 (예: 3,000,000)" type="text"/>
+<input autocomplete="off" id="month2" inputmode="numeric" placeholder="2개월차 월급 (예: 3,500,000)" type="text"/>
+<input autocomplete="off" id="month3" inputmode="numeric" placeholder="3개월차 월급 (예: 3,200,000)" type="text"/><div class="err" id="moneyErr">월급은 0원 이상 숫자로 입력하세요.</div>
 </div>
 </div>
 <div class="section">
@@ -818,7 +818,7 @@ button.primary:active { transform: translateY(1px); }
 </div>
 <div class="section">
 <label for="yearsWorked">근무기간 (년/월)</label>
-<input autocomplete="off" id="yearsWorked" inputmode="decimal" min="0" placeholder="년 (예: 3)" type="number"/><input autocomplete="off" id="monthsWorked" inputmode="numeric" max="11" min="0" placeholder="개월(0~11)" type="number"/><div class="err" id="monthsErr">개월은 0~11 범위의 숫자여야 합니다.</div><div class="err" id="yearsErr">근속연수는 0 이상 숫자(소수 가능)로 입력하세요.</div>
+<input autocomplete="off" id="yearsWorked" inputmode="decimal" min="0" placeholder="년 (예: 3)" type="number"/><input autocomplete="off" id="monthsWorked" inputmode="numeric" max="11" min="0" placeholder="개월 (0~11)" type="number"/><div class="err" id="monthsErr">개월은 0~11 범위의 숫자여야 합니다.</div><div class="err" id="yearsErr">근속연수는 0 이상 숫자(소수 가능)로 입력하세요.</div>
 </div>
 <button class="primary" id="btnCalc" onclick="calculate()" type="button">퇴직금 계산</button>
 <div class="result-box" id="result" style="display:none;">
