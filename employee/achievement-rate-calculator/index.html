@@ -850,6 +850,11 @@ button.ghost{ background:transparent }
 footer{ max-width:1024px; margin:36px auto 0; padding:0 16px 40px; color:var(--muted); font-size:13px }
 button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-color:rgba(0,0,0,.08) }
 @media (prefers-reduced-motion: reduce){ *{ animation:none !important; transition:none !important } }
+</style><style id="wk-achv-ux">
+/* Workkit: Achievement Calculator UX Enhancements */
+.err { color:#d92d20; font-size:13px; margin-top:6px; display:none; }
+.result .big { font-size: clamp(22px,4.3vw,30px); font-weight: 800; }
+button.primary { background:#1f6fff !important; color:#fff !important; border:none !important; border-radius:12px !important; font-weight:700 !important; box-shadow:0 4px 12px rgba(31,111,255,.25) !important; }
 </style></head>
 <body><header class="wk-header">
 <nav class="wk-nav">
@@ -860,7 +865,6 @@ button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-
 <span class="wk-spacer"></span>
 </nav>
 </header>
-
 <nav aria-label="breadcrumb">
 <ol class="breadcrumb">
 <li><a aria-label="홈" href="/">홈</a></li>
@@ -871,10 +875,10 @@ button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-
 <div class="container">
 <h2>🎯 달성률 계산기</h2>
 <label>1️⃣ 목표값</label>
-<input id="target" oninput="formatInput(this)" onkeypress="handleKey(event)" placeholder="예: 3,000,000" type="text"/>
+<input autocomplete="off" id="target" inputmode="numeric" oninput="formatInput(this)" onkeypress="handleKey(event)" placeholder="예: 3,000,000" type="text"/><div class="err" id="targetErr">목표값은 1 이상이어야 합니다.</div>
 <label>2️⃣ 실적값</label>
-<input id="actual" oninput="formatInput(this)" onkeypress="handleKey(event)" placeholder="예: 2,500,000" type="text"/>
-<button onclick="calculate()">달성률 계산하기</button>
+<input autocomplete="off" id="actual" inputmode="numeric" oninput="formatInput(this)" onkeypress="handleKey(event)" placeholder="예: 2,500,000" type="text"/><div class="err" id="actualErr">실적값은 0 이상이어야 합니다.</div>
+<button class="primary" id="btnCalc" onclick="calculate()" type="button">달성률 계산하기</button>
 <div class="result" id="result"></div>
 <div class="comparison" id="comparisonBox" style="display:none;"></div>
 <div class="info">
@@ -902,5 +906,76 @@ button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-
 </nav>
 <small>© Workkit. All rights reserved.</small>
 </footer>
-</body>
+<script id="wk-achv-core-2025">
+(function(){
+  // ===== Helpers =====
+  var nf = new Intl.NumberFormat('ko-KR');
+  function fmtInt(n){ try{ return nf.format(Math.round(n)); }catch(_){ return n; } }
+  function parseNum(v){
+    var s = (v||'').toString().replace(/[,\s]/g,'');
+    // allow one dot and a leading minus sign
+    if((s.match(/\./g)||[]).length>1){ s = s.replace(/\.(?=.*\.)/g,''); }
+    s = s.replace(/(?!^)-/g,''); // minus only at start
+    var n = Number(s);
+    return Number.isFinite(n) ? n : 0;
+  }
+  function show(id, yes){ var el=document.getElementById(id); if(!el) return; el.style.display = yes?'block':'none'; }
+
+  // ===== Exposed for inline attributes =====
+  window.formatInput = function(el){
+    if(!el) return;
+    var raw = (el.value||'').toString().replace(/,/g,'');
+    var parts = raw.split('.');
+    var intPart = parts[0].replace(/[^\d-]/g,'');
+    var dec = parts.length>1 ? ('.'+ parts[1].replace(/[^\d]/g,'')) : '';
+    if(intPart === '' && dec===''){ el.value=''; return; }
+    el.value = fmtInt(intPart) + dec;
+  };
+  window.handleKey = function(e){ if(e.key==='Enter'){ e.preventDefault(); calculate(); } };
+
+  // ===== Core calculation =====
+  window.calculate = function(){
+    var $target = document.getElementById('target');
+    var $actual = document.getElementById('actual');
+    var $result = document.getElementById('result');
+    var $comp   = document.getElementById('comparisonBox');
+
+    var target = parseNum($target && $target.value);
+    var actual = parseNum($actual && $actual.value);
+
+    var ok = true;
+    if(!(target>=1)){ show('targetErr', true); ok=false; } else show('targetErr', false);
+    if(!(actual>=0)){ show('actualErr', true); ok=false; } else show('actualErr', false);
+    if(!ok){ if($result){ $result.innerHTML=''; } if($comp){ $comp.style.display='none'; } return; }
+
+    var rate = (actual/target)*100;
+    var rateTxt = rate.toLocaleString('ko-KR', { maximumFractionDigits: 2 });
+
+    var diff = actual - target;
+    var sign = diff>=0 ? '+' : '';
+    var status = diff>=0 ? '🎉 목표 달성' : '아쉽게 미달';
+    var tip = diff>=0 ? '좋아요! 유지·확대 전략을 고민해보세요.' : '보완 과제를 짧게 정리해 다음 목표에 반영하세요.';
+
+    if($result){
+      $result.innerHTML = ''
+        + '<div class="big">달성률 <span style="color:#1f6fff">'+ rateTxt + '%</span></div>'
+        + '<div class="small" style="margin-top:6px">실적 '
+        + fmtInt(actual) + ' / 목표 ' + fmtInt(target) + ' (차이 ' + sign + fmtInt(diff) + ')</div>';
+    }
+    if($comp){
+      $comp.innerHTML = '<strong>'+status+'</strong> · 차이 ' + sign + fmtInt(diff) + '원. ' + tip;
+      $comp.style.display = 'block';
+    }
+  };
+
+  // Global Enter anywhere
+  document.addEventListener('keydown', function(e){
+    var tag = (e.target && e.target.tagName || '').toLowerCase();
+    if(e.key==='Enter' && tag!=='textarea'){ e.preventDefault(); calculate(); }
+  }, true);
+
+  // Button binding (in case inline onclick removed)
+  var btn = document.getElementById('btnCalc');
+  if(btn){ btn.addEventListener('click', function(e){ e.preventDefault(); calculate(); }); }
+})();</script></body>
 </html>
