@@ -778,6 +778,13 @@ button.ghost{ background:transparent }
 footer{ max-width:1024px; margin:36px auto 0; padding:0 16px 40px; color:var(--muted); font-size:13px }
 button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-color:rgba(0,0,0,.08) }
 @media (prefers-reduced-motion: reduce){ *{ animation:none !important; transition:none !important } }
+</style><style id="wk-weekly-allowance-2025">
+/* Workkit weekly allowance polish (2025) */
+button.primary{background:#1f6fff!important;color:#fff!important;border:none!important;border-radius:12px!important;font-weight:700!important;box-shadow:0 4px 12px rgba(31,111,255,.25)!important}
+.result-box{border:1px dashed #e5e7eb;background:#fff}
+.result-box .big{font-size:clamp(22px,4.3vw,30px);font-weight:800}
+.err{color:#d92d20;font-size:13px;margin-top:6px;display:none}
+.small{font-size:12.5px;color:#667085}
 </style></head>
 <body><header class="wk-header">
 <nav class="wk-nav">
@@ -788,7 +795,6 @@ button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-
 <span class="wk-spacer"></span>
 </nav>
 </header>
-
 <nav aria-label="breadcrumb">
 <ol class="breadcrumb">
 <li><a aria-label="홈" href="/">홈</a></li>
@@ -800,13 +806,13 @@ button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-
 <h2>주휴수당 계산기</h2>
 <div class="section">
 <label for="hourlyWage">시급 (2025년 최저시급 10,030원)<br/><small style="font-weight:normal;color:#888;">* 월급에서 공제 전 금액, 주휴수당은 세전 기준으로 계산됩니다.</small></label>
-<input id="hourlyWage" placeholder="예: 10,030원" type="text"/>
+<input autocomplete="off" id="hourlyWage" inputmode="numeric" placeholder="예: 10,030원" type="text"/><div class="err" id="hourErr">시급은 1원 이상 숫자여야 합니다.</div>
 </div>
 <div class="section">
 <label for="weeklyHours">주간 실제 근로시간 (시간)</label>
-<input id="weeklyHours" placeholder="예: 20시간" type="text"/>
+<input autocomplete="off" id="weeklyHours" inputmode="decimal" placeholder="예: 20시간" type="text"/><div class="err" id="whErr">주간 근로시간은 0.1시간 이상 숫자여야 합니다.</div>
 </div>
-<button onclick="calculate()">계산하기</button>
+<button class="primary" id="btnCalc" type="button">계산하기</button>
 <div class="result-box" id="result" style="display:none;">
 <p id="weeklyAllowance"></p>
 <p id="expectedMonthly"></p>
@@ -836,5 +842,92 @@ button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-
 </nav>
 <small>© Workkit. All rights reserved.</small>
 </footer>
-</body>
+<script id="wk-weekly-allowance-core-2025">
+(function(){
+  // ===== Constants =====
+  var WEEKS_PER_MONTH = 4.345; // 평균 달의 주수
+
+  // ===== Helpers =====
+  var nf = new Intl.NumberFormat('ko-KR');
+  function fmt(n){ try{ return nf.format(Math.round(n)); }catch(_){ return n; } }
+  function uncomma(v){ return (v||'').toString().replace(/,/g,'').trim(); }
+  function toNumKRW(v){
+    var s = uncomma(v).replace(/[^\d.-]/g,'');
+    var n = Number(s);
+    return Number.isFinite(n)?n:NaN;
+  }
+  function toNumHours(v){
+    var s = (v||'').toString().replace(/,/g,'').replace(/[^\d.-]/g,'');
+    if((s.match(/\./g)||[]).length>1){ s = s.replace(/\.(?=.*\.)/g,''); }
+    var n = Number(s);
+    return Number.isFinite(n)?n:NaN;
+  }
+  function formatLiveKRW($el){
+    if(!$el) return;
+    var val = ($el.value||'')+'';
+    var sel = $el.selectionStart||0;
+    var leftDigits = val.slice(0,sel).replace(/[^0-9]/g,'').length;
+    var raw = val.replace(/[^\d]/g,'');
+    if(raw===''){ $el.value=''; return; }
+    var f = nf.format(parseInt(raw,10));
+    $el.value = f;
+    // restore caret
+    var pos=0, seen=0;
+    while(pos<f.length){
+      if(/\d/.test(f[pos])){ seen++; if(seen>=leftDigits){ pos++; break; } }
+      pos++;
+    }
+    try{ $el.setSelectionRange(pos,pos); }catch(_){}
+  }
+  function show(id, yes){ var el=document.getElementById(id); if(!el) return; el.style.display = yes?'block':'none'; }
+
+  // ===== DOM =====
+  var $hourly = document.getElementById('hourlyWage');
+  var $wh = document.getElementById('weeklyHours');
+  var $btn = document.getElementById('btnCalc');
+  var $box = document.getElementById('result');
+  var $w = document.getElementById('weeklyAllowance');
+  var $m = document.getElementById('expectedMonthly');
+
+  // Live commas for hourly wage
+  if($hourly){
+    $hourly.addEventListener('input', function(){ formatLiveKRW($hourly); });
+    $hourly.addEventListener('blur', function(){ formatLiveKRW($hourly); });
+  }
+
+  // Enter = calculate anywhere
+  document.addEventListener('keydown', function(e){
+    var tag=(e.target&&e.target.tagName||'').toLowerCase();
+    if(e.key==='Enter' && tag!=='textarea'){ e.preventDefault(); calculate(); }
+  }, true);
+
+  if($btn){ $btn.addEventListener('click', function(e){ e.preventDefault(); calculate(); }); }
+
+  // ===== Main calculation =====
+  window.calculate = function(){
+    var hourly = toNumKRW($hourly && $hourly.value);
+    var hours = toNumHours($wh && $wh.value);
+
+    var ok = true;
+    if(!(Number.isFinite(hourly) && hourly>=1)){ show('hourErr', true); ok=false; } else show('hourErr', false);
+    if(!(Number.isFinite(hours) && hours>0)){ show('whErr', true); ok=false; } else show('whErr', false);
+    if(!ok){ if($box){ $box.style.display='none'; } return; }
+
+    var eligible = hours >= 15;
+    var weekly = 0, monthly = 0, msg = '';
+
+    if(eligible){
+      weekly = hourly * 8 * (Math.min(hours,40) / 40);
+      monthly = weekly * WEEKS_PER_MONTH;
+      msg = '주휴수당(주 기준): ' + fmt(weekly) + '원';
+    }else{
+      msg = '주간 근로시간이 15시간 미만이므로 주휴수당 대상이 아닙니다.';
+    }
+
+    if($w) $w.innerHTML = '<span class="big">' + (eligible? fmt(weekly)+'원' : '0원') + '</span> <span class="small">— '+ (eligible? '자격 충족(주 '+hours+'시간 ≥ 15시간)': '자격 미충족(주 '+hours+'시간 < 15시간)') +'</span>';
+    if($m) $m.innerHTML = (eligible? '월 환산(참고): <b>'+ fmt(monthly) +'원</b> (평균 '+WEEKS_PER_MONTH+'주/월)' : '<span class="small">월 환산 없음</span>');
+
+    if($box) $box.style.display='block';
+  };
+})();</script></body>
 </html>
