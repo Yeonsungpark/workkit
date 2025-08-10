@@ -781,6 +781,9 @@ button.ghost{ background:transparent }
 footer{ max-width:1024px; margin:36px auto 0; padding:0 16px 40px; color:var(--muted); font-size:13px }
 button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-color:rgba(0,0,0,.08) }
 @media (prefers-reduced-motion: reduce){ *{ animation:none !important; transition:none !important } }
+</style><style id="wk-netpay-2025-lite">
+.err { color:#d92d20; font-size:13px; margin-top:6px; display:none; }
+button.primary { background:#1f6fff !important; color:#fff !important; border:none !important; border-radius:12px !important; font-weight:700 !important; box-shadow:0 4px 12px rgba(31,111,255,.25) !important; }
 </style></head>
 <body><header class="wk-header">
 <nav class="wk-nav">
@@ -791,7 +794,6 @@ button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-
 <span class="wk-spacer"></span>
 </nav>
 </header>
-
 <nav aria-label="breadcrumb">
 <ol class="breadcrumb">
 <li><a aria-label="홈" href="/">홈</a></li>
@@ -810,9 +812,9 @@ button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-
 </div>
 <div class="section">
 <label for="amount">금액 입력</label>
-<input id="amount" placeholder="숫자만 입력" type="text"/>
+<input autocomplete="off" id="amount" inputmode="numeric" placeholder="숫자만 입력" type="text"/><div class="err" id="amountErr">금액은 1원 이상 숫자로 입력하세요.</div>
 </div>
-<button onclick="calculate()">실수령액 계산</button>
+<button class="primary" id="btnCalc" onclick="calculate()" type="button">실수령액 계산</button>
 <div class="result-box" id="result" style="display:none;">
 <p id="monthlyNet"></p>
 <p id="yearlyNet"></p>
@@ -842,7 +844,7 @@ button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-
 <tr><td>소득세 + 지방세</td><td>약 5%~12%</td></tr>
 </table>
 <p>※ 위 수치는 예시이며, 실제 계산은 연봉, 세액공제, 부양가족 수, 연금/보험가입 여부에 따라 달라집니다.</p>
-</div>
+<p id="wk-2025-note">※ 2025 기준: 국민연금 4.5%(기준소득월액 하한 40만/상한 637만), 건강보험 7.09%(근로자 3.545%), 장기요양 건보료의 12.95%, 고용보험 근로자 0.9%.</p></div>
 </div>
 <footer class="global-footer" role="contentinfo">
 <nav aria-label="하단 내비게이션">
@@ -858,5 +860,86 @@ button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-
 </nav>
 <small>© Workkit. All rights reserved.</small>
 </footer>
-</body>
+<script id="wk-netpay-2025-core">
+(function(){
+  // ===== Helpers =====
+  var nf = new Intl.NumberFormat('ko-KR');
+  function fmt(n){ try{ return nf.format(Math.round(n)); }catch(_){ return n; } }
+  function uncomma(v){ return (v||'').toString().replace(/,/g,'').trim(); }
+  function toNum(v){
+    var s = uncomma(v).replace(/[^\d.-]/g,'');
+    if((s.match(/\./g)||[]).length>1){ s = s.replace(/\.(?=.*\.)/g,''); }
+    var n = Number(s);
+    return Number.isFinite(n) ? n : NaN;
+  }
+  function show(id, yes){ var el=document.getElementById(id); if(!el) return; el.style.display = yes?'block':'none'; }
+
+  // ===== DOM =====
+  var $type = document.getElementById('type');
+  var $amount = document.getElementById('amount');
+  var $btn = document.getElementById('btnCalc');
+  var $box = document.getElementById('result');
+  var $mon = document.getElementById('monthlyNet');
+  var $yr  = document.getElementById('yearlyNet');
+
+  // ===== 2025 employee-side rates =====
+  var PENSION_RATE = 0.045;        // 국민연금
+  var PENSION_MIN_BASE = 400000;   // 기준소득월액 하한 (2025.07~2026.06)
+  var PENSION_MAX_BASE = 6370000;  // 기준소득월액 상한 (2025.07~2026.06)
+
+  var HEALTH_RATE_EMP = 0.03545;   // 건강보험 (7.09%의 절반, 직원부담)
+  var LTC_RATIO = 0.1295;          // 장기요양 = 건보료의 12.95%
+  var EMPLOY_RATE = 0.009;         // 고용보험 (직원)
+
+  // ===== Input formatting =====
+  if($amount){
+    $amount.addEventListener('focus', function(){ $amount.value = uncomma($amount.value); });
+    $amount.addEventListener('blur', function(){
+      var n = toNum($amount.value);
+      $amount.value = Number.isFinite(n) && n>0 ? nf.format(n) : '';
+    });
+  }
+
+  // ===== Main calculation =====
+  window.calculate = function(){
+    var raw = toNum($amount && $amount.value);
+    if(!Number.isFinite(raw) || raw < 1){
+      show('amountErr', true);
+      if($box) $box.style.display='none';
+      return;
+    } else show('amountErr', false);
+
+    var t = ($type && $type.value) || 'yearly';
+    var annual = 0, monthly = 0;
+    if(t === 'yearly'){ annual = raw; monthly = annual / 12; }
+    else { monthly = raw; annual = monthly * 12; }
+
+    // 4대보험 (직원 부담)
+    var pensionBase = Math.min(Math.max(monthly, PENSION_MIN_BASE), PENSION_MAX_BASE);
+    var pension = Math.round(pensionBase * PENSION_RATE);
+    var health  = Math.round(monthly * HEALTH_RATE_EMP);
+    var ltc     = Math.round(health * LTC_RATIO);      // 건보료의 12.95%
+    var employ  = Math.round(monthly * EMPLOY_RATE);
+
+    var siTotal = pension + health + ltc + employ;
+    var netMonthly = Math.max(0, Math.round(monthly - siTotal));
+    var netYearly  = netMonthly * 12;
+
+    if($box){ $box.style.display='block'; }
+    if($mon){
+      $mon.textContent = '월 실수령(4대보험만 반영): ' + fmt(netMonthly) + '원  — (국민연금 ' + fmt(pension) + '원, 건강보험 ' + fmt(health) + '원, 장기요양 ' + fmt(ltc) + '원, 고용보험 ' + fmt(employ) + '원 공제)';
+    }
+    if($yr){
+      $yr.textContent = '연 실수령(추정): ' + fmt(netYearly) + '원';
+    }
+  };
+
+  // Global Enter anywhere
+  document.addEventListener('keydown', function(e){
+    var tag = (e.target && e.target.tagName || '').toLowerCase();
+    if(e.key==='Enter' && tag!=='textarea'){ e.preventDefault(); calculate(); }
+  }, true);
+
+  if($btn){ $btn.addEventListener('click', function(e){ e.preventDefault(); calculate(); }); }
+})();</script></body>
 </html>
