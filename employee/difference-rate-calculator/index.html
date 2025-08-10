@@ -852,6 +852,10 @@ button.ghost{ background:transparent }
 footer{ max-width:1024px; margin:36px auto 0; padding:0 16px 40px; color:var(--muted); font-size:13px }
 button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-color:rgba(0,0,0,.08) }
 @media (prefers-reduced-motion: reduce){ *{ animation:none !important; transition:none !important } }
+</style><style id="wk-diff-lite">
+.err { color:#d92d20; font-size:13px; margin-top:6px; display:none; }
+.result .big { font-size: clamp(22px,4.3vw,30px); font-weight: 800; }
+.small { font-size:12.5px; color:#667085; }
 </style></head>
 <body><header class="wk-header">
 <nav class="wk-nav">
@@ -862,7 +866,6 @@ button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-
 <span class="wk-spacer"></span>
 </nav>
 </header>
-
 <nav aria-label="breadcrumb">
 <ol class="breadcrumb">
 <li><a aria-label="홈" href="/">홈</a></li>
@@ -873,10 +876,10 @@ button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-
 <div class="container">
 <h2>📉 증감률 계산기</h2>
 <label>1️⃣ 기준값 (예: 전년도 수치)</label>
-<input id="baseValue" oninput="formatNumber(this)" onkeypress="handleKeyPress(event)" placeholder="예: 1,000,000" type="text"/>
+<input autocomplete="off" id="baseValue" inputmode="numeric" oninput="formatNumber(this)" onkeypress="handleKeyPress(event)" placeholder="예: 1,000,000" type="text"/><div class="err" id="baseErr">기준값은 0이 아닌 숫자여야 합니다.</div>
 <label>2️⃣ 비교값 (예: 올해 수치)</label>
-<input id="currentValue" oninput="formatNumber(this)" onkeypress="handleKeyPress(event)" placeholder="예: 800,000" type="text"/>
-<button onclick="calculateDifference()">증감률 계산하기</button>
+<input autocomplete="off" id="currentValue" inputmode="numeric" oninput="formatNumber(this)" onkeypress="handleKeyPress(event)" placeholder="예: 800,000" type="text"/><div class="err" id="currErr">비교값은 숫자여야 합니다.</div>
+<button class="primary" id="btnCalc" onclick="calculateDifference()" type="button">증감률 계산하기</button>
 <div class="result" id="resultArea"></div>
 <div class="history" id="history"></div>
 <div class="info">
@@ -904,5 +907,90 @@ button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-
 </nav>
 <small>© Workkit. All rights reserved.</small>
 </footer>
-</body>
+<script id="wk-diff-core">
+(function(){
+  // ===== Helpers =====
+  var nf = new Intl.NumberFormat('ko-KR');
+  function fmtInt(n){ try{ return nf.format(Math.round(n)); }catch(_){ return n; } }
+  function parseNum(v){
+    var s = (v||'').toString().replace(/[,\s]/g,'');
+    if((s.match(/\./g)||[]).length>1){ s = s.replace(/\.(?=.*\.)/g,''); }
+    s = s.replace(/(?!^)-/g,''); // minus only at start
+    var n = Number(s);
+    return Number.isFinite(n) ? n : NaN;
+  }
+  function show(id, yes){ var el=document.getElementById(id); if(!el) return; el.style.display = yes?'block':'none'; }
+
+  // ===== Exposed for inline handlers =====
+  window.formatNumber = function(el){
+    if(!el) return;
+    var raw = (el.value||'').toString().replace(/,/g,'');
+    var parts = raw.split('.');
+    var intPart = parts[0].replace(/[^\d-]/g,'');
+    var dec = parts.length>1 ? ('.'+ parts[1].replace(/[^\d]/g,'')) : '';
+    if(intPart==='' && dec===''){ el.value=''; return; }
+    el.value = fmtInt(intPart) + dec;
+  };
+  window.handleKeyPress = function(e){
+    if(e.key === 'Enter'){ e.preventDefault(); calculateDifference(); }
+  };
+
+  // ===== Main calculation =====
+  window.calculateDifference = function(){
+    var $base = document.getElementById('baseValue');
+    var $curr = document.getElementById('currentValue');
+    var $out  = document.getElementById('resultArea');
+    var $hist = document.getElementById('history');
+
+    var base = parseNum($base && $base.value);
+    var curr = parseNum($curr && $curr.value);
+
+    var ok = true;
+    if(!(typeof base==='number' && !Number.isNaN(base) && base!==0)){ show('baseErr', true); ok=false; } else show('baseErr', false);
+    if(!(typeof curr==='number' && !Number.isNaN(curr))){ show('currErr', true); ok=false; } else show('currErr', false);
+    if(!ok){ if($out){ $out.innerHTML=''; } return; }
+
+    var diff = curr - base;
+    var rate = (diff / base) * 100;
+    var sign = diff>=0 ? '+' : '';
+    var rateTxt = rate.toLocaleString('ko-KR', { maximumFractionDigits: 2 });
+
+    if($out){
+      $out.innerHTML = ''
+        + '<div class="big">증감률 <span style="color:#1f6fff">' + rateTxt + '%</span></div>'
+        + '<div class="small" style="margin-top:6px">차이 ' + sign + fmtInt(diff) + ' (' + fmtInt(curr) + ' → ' + fmtInt(base) + ' 기준)</div>';
+    }
+
+    // History (keep latest 10)
+    try{
+      var rec = {t:Date.now(), base:base, curr:curr, diff:diff, rate:rate};
+      var list = JSON.parse(localStorage.getItem('wk_diff_hist')||'[]');
+      list.unshift(rec); list = list.slice(0,10);
+      localStorage.setItem('wk_diff_hist', JSON.stringify(list));
+      renderHistory(list);
+    }catch(_){}
+  };
+
+  function renderHistory(list){
+    var box = document.getElementById('history');
+    if(!box) return;
+    box.innerHTML='';
+    (list||[]).forEach(function(x){
+      var p = document.createElement('div');
+      p.className='history-item';
+      var s = (x.diff>=0?'+':'') + fmtInt(x.diff) + ' (' + x.rate.toLocaleString('ko-KR',{maximumFractionDigits:2}) + '%)'
+      p.textContent = fmtInt(x.base) + ' → ' + fmtInt(x.curr) + ' | ' + s;
+      box.appendChild(p);
+    });
+  }
+
+  // Global Enter anywhere
+  document.addEventListener('keydown', function(e){
+    var tag = (e.target && e.target.tagName || '').toLowerCase();
+    if(e.key==='Enter' && tag!=='textarea'){ e.preventDefault(); calculateDifference(); }
+  }, true);
+
+  // Load existing history
+  try{ renderHistory(JSON.parse(localStorage.getItem('wk_diff_hist')||'[]')); }catch(_){}
+})();</script></body>
 </html>
