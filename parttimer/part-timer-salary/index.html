@@ -779,6 +779,10 @@ button.ghost{ background:transparent }
 footer{ max-width:1024px; margin:36px auto 0; padding:0 16px 40px; color:var(--muted); font-size:13px }
 button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-color:rgba(0,0,0,.08) }
 @media (prefers-reduced-motion: reduce){ *{ animation:none !important; transition:none !important } }
+</style><style id="wk-parttimer-lite-2025">
+.err{color:#d92d20;font-size:13px;margin-top:6px;display:none}
+.small{font-size:12.5px;color:#667085}
+.result .big{font-size:clamp(22px,4.3vw,30px);font-weight:800}
 </style></head>
 <body><header class="wk-header">
 <nav class="wk-nav">
@@ -789,7 +793,6 @@ button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-
 <span class="wk-spacer"></span>
 </nav>
 </header>
-
 <nav aria-label="breadcrumb">
 <ol class="breadcrumb">
 <li><a aria-label="홈" href="/">홈</a></li>
@@ -800,16 +803,16 @@ button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-
 <div class="wrapper">
 <h2>알바 월급 계산기</h2>
 <div class="field">
-<label for="hourly">시급 (세전)</label>
-<input id="hourly" placeholder="예: 9850" type="text"/>
+<label for="hourly">시급 (25년 최저시급 10,030원)</label>
+<input autocomplete="off" id="hourly" inputmode="numeric" placeholder="예: 10,030" type="text"/><div class="err" id="hourErr">시급은 1원 이상 숫자여야 합니다.</div>
 </div>
 <div class="field">
 <label for="dailyHours">하루 근무시간</label>
-<input id="dailyHours" placeholder="예: 6" type="text"/>
+<input autocomplete="off" id="dailyHours" inputmode="decimal" placeholder="예: 6" type="text"/><div class="err" id="dayErr">하루 근무시간은 0.1시간 이상 숫자여야 합니다.</div>
 </div>
 <div class="field">
 <label for="monthlyDays">한 달 근무일수</label>
-<input id="monthlyDays" placeholder="예: 20" type="text"/>
+<input autocomplete="off" id="monthlyDays" inputmode="numeric" placeholder="예: 20" type="text"/><div class="err" id="mdaysErr">한 달 근무일수는 1일 이상 숫자여야 합니다.</div>
 </div>
 <div class="field">
 <label><input id="includeAllowance" style="width:auto;margin-right:8px;" type="checkbox"/>주휴수당 포함 <small>(주 15시간 이상 근무 시 체크)</small></label>
@@ -821,7 +824,7 @@ button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-
 <option value="after">세후 (3.3% 공제)</option>
 </select>
 </div>
-<button onclick="calc()">계산하기</button>
+<button class="primary" id="btnCalc" onclick="calc()" type="button">계산하기</button>
 <div class="result" id="result" style="display:none">
 <p id="dayPay"></p>
 <p id="monthPay"></p>
@@ -842,7 +845,7 @@ button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-
 </ul>
 <h3>📣 주의사항</h3>
 <p>주휴수당은 <strong>주휴일(보통 일요일)</strong>을 유급 처리해주는 제도이며, 아르바이트 근로계약서와 사업장 운영 방식에 따라 실제 지급 조건이 다를 수 있습니다.</p>
-</div>
+<p class="small">※ 2025 기준 정보: 최저시급 10,030원(고용노동부 고시), 주휴수당은 1주 15시간 이상·개근 시 1일분 유급(근로기준법 제55조). 3.3% 공제는 프리랜서·사업소득 형태 계약에 주로 적용됩니다.</p></div>
 <strong>사용법</strong><br/>
     시급·하루 근무시간·근무일수만 입력하면 예상 월급이 계산됩니다.<br/>
     주휴수당은 주 15시간 이상 근무자가 개근했을 때 지급되는 유급휴일 수당이며, 체크하면 자동 포함됩니다.
@@ -861,5 +864,111 @@ button, .tab{ min-height:44px; touch-action:manipulation; -webkit-tap-highlight-
 </nav>
 <small>© Workkit. All rights reserved.</small>
 </footer>
-</body>
+<script id="wk-parttimer-core-2025">
+(function(){
+  // ===== Helpers =====
+  var nf = new Intl.NumberFormat('ko-KR');
+  var WEEKS_PER_MONTH = 4.345; // 평균 1개월 주수
+  function fmt(n){ try{ return nf.format(Math.round(n)); }catch(_){ return n; } }
+  function uncomma(s){ return (s||'').toString().replace(/,/g,'').trim(); }
+  function toNum(v){
+    var s = uncomma(v).replace(/[^\d.-]/g,'');
+    if((s.match(/\./g)||[]).length>1){ s = s.replace(/\.(?=.*\.)/g,''); }
+    var n = Number(s);
+    return Number.isFinite(n)?n:NaN;
+  }
+  function show(id, yes){ var el=document.getElementById(id); if(!el) return; el.style.display = yes?'block':'none'; }
+  function formatLiveKRW($el){
+    if(!$el) return;
+    var val = ($el.value||'')+'';
+    var sel = $el.selectionStart||0;
+    var leftDigits = val.slice(0,sel).replace(/[^0-9]/g,'').length;
+    var raw = val.replace(/[^\d]/g,'');
+    if(raw===''){ $el.value=''; return; }
+    var f = nf.format(parseInt(raw,10));
+    $el.value = f;
+    // restore caret by walking digits
+    var pos=0, seen=0;
+    while(pos<f.length){
+      if(/\d/.test(f[pos])){ seen++; if(seen>=leftDigits){ pos++; break; } }
+      pos++;
+    }
+    try{ $el.setSelectionRange(pos,pos); }catch(_){}
+  }
+
+  // ===== DOM =====
+  var $hourly = document.getElementById('hourly');
+  var $daily  = document.getElementById('dailyHours');
+  var $mdays  = document.getElementById('monthlyDays');
+  var $allow  = document.getElementById('includeAllowance');
+  var $tax    = document.getElementById('taxOption');
+  var $dayPay = document.getElementById('dayPay');
+  var $monthPay = document.getElementById('monthPay');
+  var $result = document.getElementById('result');
+
+  // Live commas for hourly
+  if($hourly){
+    $hourly.addEventListener('input', function(){ formatLiveKRW($hourly); });
+    $hourly.addEventListener('blur', function(){ var n = toNum($hourly.value); $hourly.value = Number.isFinite(n)&&n>0? nf.format(n):''; });
+  }
+
+  window.calc = function(){
+    var hr = toNum($hourly && $hourly.value);
+    var dh = toNum($daily && $daily.value);
+    var md = toNum($mdays && $mdays.value);
+
+    var ok = true;
+    if(!(Number.isFinite(hr) && hr>=1)){ show('hourErr', true); ok=false; } else show('hourErr', false);
+    if(!(Number.isFinite(dh) && dh>0)){ show('dayErr', true); ok=false; } else show('dayErr', false);
+    if(!(Number.isFinite(md) && md>=1)){ show('mdaysErr', true); ok=false; } else show('mdaysErr', false);
+    if(!ok){ if($result) $result.style.display='none'; return; }
+
+    // base amounts
+    var dayGross = hr * dh;
+    var monthGross = hr * dh * md;
+
+    // weekly paid holiday (주휴) — if opted and eligible (>=15h/week based on inputs)
+    var holidayPay = 0, eligible=false;
+    if($allow && $allow.checked){
+      var weeklyDays = md / WEEKS_PER_MONTH;
+      var weeklyHours = dh * weeklyDays;
+      eligible = weeklyHours >= 15;
+      if(eligible){
+        var monthlyHolidayHours = dh * WEEKS_PER_MONTH; // 1일 유급휴일 × 주수
+        holidayPay = hr * monthlyHolidayHours;
+      }
+    }
+
+    var grossWithHoliday = monthGross + holidayPay;
+
+    // After/before tax
+    var isAfter = ($tax && $tax.value==='after');
+    var dayOut = isAfter ? Math.round(dayGross * 0.967) : Math.round(dayGross);
+    var monthOut = isAfter ? Math.round(grossWithHoliday * 0.967) : Math.round(grossWithHoliday);
+
+    if($dayPay){
+      $dayPay.innerHTML = '<span class="big">일급 ' + fmt(dayOut) + '원</span>' + (isAfter? ' <span class="small">(3.3% 공제 반영)</span>':'');
+    }
+    if($monthPay){
+      var parts = [];
+      parts.push('기본 월급(세전): ' + fmt(monthGross) + '원');
+      if($allow && $allow.checked){
+        parts.push('주휴수당: ' + (eligible ? (fmt(holidayPay)+'원 (주 '+WEEKS_PER_MONTH+'주 × 하루 '+dh+'시간)') : '대상 아님(주 '+weeklyHours.toFixed(1)+'시간 < 15시간)'));
+      }
+      parts.push((isAfter?'세후 월급(3.3% 공제): ':'세전 월급(합계): ') + '<b>' + fmt(monthOut) + '원</b>');
+      $monthPay.innerHTML = parts.join('<br>');
+    }
+
+    if($result){ $result.style.display='block'; }
+  };
+
+  // Global Enter = calculate
+  document.addEventListener('keydown', function(e){
+    var tag=(e.target&&e.target.tagName||'').toLowerCase();
+    if(e.key==='Enter' && tag!=='textarea'){ e.preventDefault(); calc(); }
+  }, true);
+
+  // Optional: auto-calc when fields blur
+  [$hourly,$daily,$mdays,$tax].forEach(function($el){ if($el){ $el.addEventListener('blur', function(){ calc(); }); }});
+})();</script></body>
 </html>
